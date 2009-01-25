@@ -1,4 +1,29 @@
-# Interpolation in one dimensional space
+# Copyright 2009 Qiqi Wang
+#
+# This file is part of wanginterp.
+#
+# wanginterp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""
+Interpolation and regression in one-dimensional space
+
+reference:
+  Q Wang et al. A Rational Interpolation Scheme with
+    Super-Polynomial Rate of Convergence.
+    In CTR Annual Research Briefs 2008, Stanford, CA.
+    Submitted to SIAM Journal of Numerical Analysis.
+"""
 
 import copy
 import sys
@@ -339,7 +364,7 @@ class Interp1D(object):
         return av, ag, 0.0
     # construct matrices
     X, E, C = self.interp_matrices(x, beta, gamma)
-    # first try to assemble the diagonal of matrix A, and sort by its diagonal
+    # assemble the diagonal of matrix A, and sort by its diagonal
     diagA = (X**2).sum(0) + E**2
     isort = sorted(range(self.n), key=diagA.__getitem__)
     irevt = sorted(range(self.n), key=isort.__getitem__)
@@ -393,7 +418,7 @@ class Interp1D(object):
         return av, ag, 0.0
     # construct matrices
     X, E, C = self.interp_matrices(x, beta, gamma)
-    # first try to assemble the diagonal of matrix A, and sort by its diagonal
+    # assemble the diagonal of matrix A, and sort by its diagonal
     diagA = (X**2).sum(0) + E**2
     isort = sorted(range(self.n), key=diagA.__getitem__)
     irevt = sorted(range(self.n), key=isort.__getitem__)
@@ -442,40 +467,30 @@ class Interp1D(object):
 
 
 
-  def _calc_res_ratio_avg(self, beta, gamma):
+  def _calc_res_ratio(self, iv, beta, gamma, safety_factor=1.0):
     """
     A utility function used by calc_gamma, calculates
-      the average ratio of real residual to the estimated
-      residual, which is used to make decision in the
-      bisection.
+      the ratio of real residual to the estimated
+      residual at the iv'th value data point, which
+      is used to make decision in the bisection process
+      for gamma at the iv'th data point.
     """
-    n_remove = max(1, self.nv / 5)
-    i_sorted = sorted(range(self.nv), key=self.xv.__getitem__)
-    var_total = 0.0
-    for i in range(0,self.nv,n_remove):
-      # interpolate each value data point using all other data points
-      target = i_sorted[i:i+n_remove]
-      base = i_sorted[:i] + i_sorted[i+n_remove:]
-      subinterp = Interp1D(self.xv[base], self.fxv[base], self.dfxv[base], \
-                            self.xg, self.fpxg, self.dfpxg, beta, gamma, \
-                            self.N, self.l, self.verbose)
-      for j in target:
-        av, ag, er2 = subinterp.interp_coef(self.xv[j])
-        # average the ratio of real residual to estimated residual
-        resid = dot(av,self.fxv[base]) + dot(ag,self.fpxg) - self.fxv[j]
-        var_total += resid**2 / (er2 + self.dfxv[j]**2)
-    return var_total / self.nv
+    base = range(iv) + range(iv+1,self.nv)
+    subinterp = Interp1D(self.xv[base], self.fxv[base], self.dfxv[base], \
+                         self.xg, self.fpxg, self.dfpxg, beta, gamma, \
+                         self.N, self.l, self.verbose)
+    av, ag, er2 = subinterp.interp_coef(self.xv[iv])
+    resid = dot(av,self.fxv[base]) + dot(ag,self.fpxg) - self.fxv[iv]
+    return resid**2 / (er2 + self.dfxv[iv]**2) * safety_factor
 
 
 
-  def calc_gamma(self):
+  def _calc_gamma_bounds(self):
     """
-    Estimate the `wave number' parameter gamma from
-      data points. This function prints stuff when
-      self.verbose > 1.
+    Calculate lower and upper bounds for gamma based
+      on the distribution of grid points.
+    Returns (gamma_min, gamma_max) pair.
     """
-    assert isinstance(self.beta, float)
-    # upper and lower bounds
     sorted_xv = numpy.array(sorted(self.xv))
     sorted_xg = numpy.array(sorted(self.xg))
     if self.xg.size == 0:
@@ -489,12 +504,27 @@ class Interp1D(object):
     assert delta_max > delta_min
     gamma_min = 1. / delta_max
     gamma_max = pi / delta_min
+    return gamma_min, gamma_max
+
+
+
+  def calc_gamma(self):
+    """
+    Estimate the `wave number' parameter gamma from
+      data points. This function prints stuff when
+      self.verbose > 1.
+    """
+    assert isinstance(self.beta, float)
     # logorithmic bisection for gamma
+    gamma_min, gamma_max = self._calc_gamma_bounds()
     while gamma_max / gamma_min > 1.1:
       if self.verbose > 1:
         print '    bisecting [', gamma_min, ',', gamma_max, '] for gamma...'
       gamma_mid = sqrt(gamma_max * gamma_min)
-      res_ratio = self._calc_res_ratio_avg(self.beta, gamma_mid)
+      res_ratio = 0.0
+      for i in range(self.nv):
+        res_ratio += self._calc_res_ratio(i, self.beta, gamma_mid)
+      res_ratio /= self.nv
       if res_ratio < 1.0:
         gamma_max = gamma_mid
       else:
