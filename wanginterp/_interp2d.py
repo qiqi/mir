@@ -116,7 +116,8 @@ class Interp2D(object):
   """
 
   def __init__(self, xv, fxv, dfxv=None, xg=None, fpxg=None, dfpxg=None, \
-               beta=None, gamma=None, N=None, l=1, verbose=1):
+               beta=None, gamma=None, N=None, l=1, verbose=1, \
+               safety_factor=1.0):
     """
     __init__(self, xv, fxv, dfxv=None, xg=None,
              fpxg=None, dfpxg=None, beta=None,
@@ -167,6 +168,10 @@ class Interp2D(object):
       else:
         assert dfpxg.ndim == 1 and dfpxg.shape[0] == xg.shape[0]
         self.dfpxg = copy.copy(dfpxg)
+
+    # check and save safety factor
+    assert safety_factor > 0.0
+    self.safety_factor = float(safety_factor)
 
     # check and automatically calculate N
     self.nv = self.xv.shape[0]
@@ -373,7 +378,7 @@ class Interp2D(object):
 
 
 
-  def _calc_res_ratio(self, iv, beta, gamma, safety_factor=1.0):
+  def _calc_res_ratio(self, iv, beta, gamma, safety_factor=None):
     """
     A utility function used by calc_gamma, calculates
       the ratio of real residual to the estimated
@@ -381,6 +386,8 @@ class Interp2D(object):
       is used to make decision in the bisection process
       for gamma at the iv'th data point.
     """
+    if safety_factor is None:
+      safety_factor = self.safety_factor
     base = range(iv) + range(iv+1,self.nv)
     subinterp = Interp2D(self.xv[base], self.fxv[base], self.dfxv[base], \
                          self.xg, self.fpxg, self.dfpxg, beta, gamma, \
@@ -401,7 +408,8 @@ class Interp2D(object):
     # logorithmic bisection for gamma
     gamma_min, gamma_max = self._calc_gamma_bounds()
     while gamma_max / gamma_min > 1.1:
-      print '    bisecting [', gamma_min, ',', gamma_max, '] for gamma...'
+      if self.verbose > 1:
+        print '    bisecting [', gamma_min, ',', gamma_max, '] for gamma...'
       gamma_mid = sqrt(gamma_max * gamma_min)
       res_ratio = 0.0
       for i in range(self.nv):
@@ -413,7 +421,8 @@ class Interp2D(object):
         gamma_min = gamma_mid
     # final selected gamma
     gamma_mid = sqrt(gamma_max * gamma_min)
-    print '    using gamma = ', gamma_mid
+    if self.verbose > 1:
+      print '    using gamma = ', gamma_mid
     return gamma_mid
 
 

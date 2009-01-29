@@ -224,7 +224,8 @@ class Interp1D(object):
   """
 
   def __init__(self, xv, fxv, dfxv=None, xg=None, fpxg=None, dfpxg=None, \
-               beta=None, gamma=None, N=None, l=1, verbose=1):
+               beta=None, gamma=None, N=None, l=1, verbose=1, \
+               safety_factor=1.0):
     """
     __init__(self, xv, fxv, dfxv=None, xg=None,
              fpxg=None, dfpxg=None, beta=None,
@@ -274,6 +275,10 @@ class Interp1D(object):
       else:
         assert dfpxg.shape == xg.shape
         self.dfpxg = copy.copy(dfpxg)
+
+    # check and save safety factor
+    assert safety_factor > 0.0
+    self.safety_factor = float(safety_factor)
 
     # check and automatically calculate N
     self.nv = self.xv.size
@@ -467,7 +472,7 @@ class Interp1D(object):
 
 
 
-  def _calc_res_ratio(self, iv, beta, gamma, safety_factor=1.0):
+  def _calc_res_ratio(self, iv, beta, gamma, safety_factor=None):
     """
     A utility function used by calc_gamma, calculates
       the ratio of real residual to the estimated
@@ -475,6 +480,8 @@ class Interp1D(object):
       is used to make decision in the bisection process
       for gamma at the iv'th data point.
     """
+    if safety_factor is None:
+      safety_factor = self.safety_factor
     base = range(iv) + range(iv+1,self.nv)
     subinterp = Interp1D(self.xv[base], self.fxv[base], self.dfxv[base], \
                          self.xg, self.fpxg, self.dfpxg, beta, gamma, \

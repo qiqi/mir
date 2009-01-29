@@ -16,14 +16,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-Interpolation and regression in one-dimensional space
+Interpolation and regression in two-dimensional space
   with variable gamma.
 
 reference:
-  Q Wang et al. A Rational Interpolation Scheme with
-    Super-Polynomial Rate of Convergence.
-    In CTR Annual Research Briefs 2008, Stanford, CA.
-    Submitted to SIAM Journal of Numerical Analysis.
+  Q Wang et al. A Multivariate Rational Interpolation
+    Scheme with High Rates of Convergence.
+    Submitted to Journal of Computational Physics.
 """
 
 import copy
@@ -34,9 +33,9 @@ import time
 import numpy
 import pylab
 from numpy import zeros, ones, eye, kron, linalg, dot, exp, sqrt, diag, pi, \
-                  asarray, sign, log
+                  asarray, sign, log, exp
 
-from _interp1d import Interp1D
+from _interp2d import Interp2D
 
 
 
@@ -46,9 +45,9 @@ from _interp1d import Interp1D
 
 
 
-class Interp1DVG(Interp1D):
+class Interp2DVG(Interp2D):
   """
-  Variable gamma version of Interp1D.
+  Variable gamma version of Interp2D.
   """
 
   def __init__(self, xv, fxv, dfxv=None, xg=None, fpxg=None, dfpxg=None, \
@@ -71,12 +70,12 @@ class Interp1DVG(Interp1D):
       during initializtion (can take a while).
     """
 
-    Interp1D.__init__(self, xv, fxv, dfxv, xg, fpxg, dfpxg, 1, 1, \
+    Interp2D.__init__(self, xv, fxv, dfxv, xg, fpxg, dfpxg, 1, 1, \
                       N, l, verbose, safety_factor)
     # calculate gammas and construct interpolation object for gamma
     self.beta = self.calc_beta()
     self.gamma = self.calc_gamma()
-    self.log_gamma_interp = Interp1D(xv, log(self.gamma), verbose=0, \
+    self.log_gamma_interp = Interp2D(xv, log(self.gamma), verbose=0, \
                                      safety_factor=100)
 
 
@@ -89,6 +88,7 @@ class Interp1DVG(Interp1D):
     assert isinstance(self.beta, float)
     if self.verbose > 1:
       print '    calculating gamma...'
+
     gamma_min_all, gamma_max_all = self._calc_gamma_bounds()
     # logorithmic bisection for gamma
     gamma = zeros(self.nv)
@@ -114,24 +114,24 @@ class Interp1DVG(Interp1D):
 
   def interp_matrices(self, x, beta=None, gamma=None):
     """
-    See Interp1D.interp_matrices.
+    See Interp2D.interp_matrices.
     This is the variable gamma version.
     """
     if beta is None:
       beta = self.beta
     if gamma is None:
       gamma = exp(self.log_gamma_interp.interp(x))
-    return Interp1D.interp_matrices(self, x, beta, gamma)
+    return Interp2D.interp_matrices(self, x, beta, gamma)
 
 
 
   def grad_coef(self, x, beta=None, gamma=None):
     """
-    See Interp1D.grad_coef.
+    See Interp2D.grad_coef.
     This is the variable gamma version.
     """
     if beta is None:
       beta = self.beta
     if gamma is None:
       gamma = exp(self.log_gamma_interp.interp(x))
-    return Interp1D.grad_coef(self, x, beta, gamma)
+    return Interp2D.grad_coef(self, x, beta, gamma)
