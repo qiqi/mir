@@ -9,7 +9,7 @@ import pylab
 from numpy import zeros, ones, linspace, kron, linalg, exp, sqrt, diag, \
                   arctan, pi
 
-sys.path.extend(['.', '..'])
+sys.path.extend(['.', '..', 'tests'])
 from wanginterp import Interp1D, Interp1DVG
 
 pylab.matplotlib.interactive(True)
