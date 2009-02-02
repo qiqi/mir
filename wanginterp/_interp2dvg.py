@@ -51,10 +51,10 @@ class Interp2DVG(Interp2D):
   """
 
   def __init__(self, xv, fxv, dfxv=None, xg=None, fpxg=None, dfpxg=None, \
-               N=None, l=1, verbose=1, safety_factor=1.0):
+               N=None, p=1, verbose=1, safety_factor=1.0):
     """
     __init__(self, xv, fxv, dfxv=None, xg=None,
-             fpxg=None, dfpxg=None, N=None, l=1)
+             fpxg=None, dfpxg=None, N=None, p=1)
     Instantiation function, see class documentation
       for arguments.
     fxv must has same size as xv.
@@ -71,7 +71,7 @@ class Interp2DVG(Interp2D):
     """
 
     Interp2D.__init__(self, xv, fxv, dfxv, xg, fpxg, dfpxg, 1, 1, \
-                      N, l, verbose, safety_factor)
+                      N, p, verbose, safety_factor)
     # calculate gammas and construct interpolation object for gamma
     self.beta = self.calc_beta()
     self.gamma = self.calc_gamma()

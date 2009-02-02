@@ -41,7 +41,7 @@ fx, fy = func(x), func(y)
 print
 print 'Using Interp2D class:'
 print
-interp = Interp2D(x, fx, l=1, verbose=1)
+interp = Interp2D(x, fx, p=1, verbose=1)
 f, sig = interp.interp(y, compute_df=True)
 gamma = interp.gamma * ones([len(y1d), len(y1d)])
 
@@ -67,7 +67,7 @@ raw_input('Push enter to continue...')
 print
 print 'Using Interp2DVG class:'
 print
-interp = Interp2DVG(x, fx, l=1, verbose=1)
+interp = Interp2DVG(x, fx, p=1, verbose=1)
 f, sig = interp.interp(y, compute_df=True)
 gamma = exp(interp.log_gamma_interp.interp(y))
 

@@ -211,9 +211,9 @@ class Interp1D(object):
     automatically calculated.  Smaller N yields lower
     order interpolation.  Numerical instability may
     occur when N is too large.
-  l is the polynomial order.  The interpolant is
-    forced to interpolate order l-1 polynomials
-    exactly.  l=1 is the most robust, higher l makes
+  p is the forced polynomial order.  The interpolant
+    is forced to interpolate order p-1 polynomials
+    exactly.  p=1 is the most robust, higher p makes
     a difference only when gamma is large, or when
     data is sparse and oscilatory if gamma is
     automatically calculated.
@@ -224,12 +224,12 @@ class Interp1D(object):
   """
 
   def __init__(self, xv, fxv, dfxv=None, xg=None, fpxg=None, dfpxg=None, \
-               beta=None, gamma=None, N=None, l=1, verbose=1, \
+               beta=None, gamma=None, N=None, p=1, verbose=1, \
                safety_factor=1.0):
     """
     __init__(self, xv, fxv, dfxv=None, xg=None,
              fpxg=None, dfpxg=None, beta=None,
-             gamma=None, N=None, l=1)
+             gamma=None, N=None, p=1)
     Instantiation function, see class documentation
       for arguments.
     fxv must has same size as xv.
@@ -289,8 +289,8 @@ class Interp1D(object):
     else:
       self.N = N
 
-    assert int(l) == l
-    self.l = int(l)
+    assert int(p) == p
+    self.p = int(p)
 
     # automatically calculate beta and gamma
     if beta is None:
@@ -312,7 +312,7 @@ class Interp1D(object):
     evaluated.
     """
     assert isinstance(x, float)
-    N, n, l, nv, ng = self.N, self.n, self.l, self.nv, self.ng
+    N, n, p, nv, ng = self.N, self.n, self.p, self.nv, self.ng
     if beta is None:
       beta = self.beta
     if gamma is None:
@@ -337,10 +337,10 @@ class Interp1D(object):
     E = sqrt(Er**2 + Ee**2)
 
     # construct C
-    C = zeros([l,n])
+    C = zeros([p,n])
     C[0,:nv] = 1.0
     C[0,nv:] = 0.0
-    for i in range(1, l):
+    for i in range(1, p):
       C[i,:nv] = (self.xv-x)**i
       C[i,nv:] = i * (self.xg-x)**(i-1)
     return X, E, C
@@ -382,7 +382,7 @@ class Interp1D(object):
       a = _lsqr_wang(X, E, C[0,:])
     else:
       b = zeros(self.N + self.n)
-      d = zeros(self.l)
+      d = zeros(self.p)
       d[0] = 1.0
       a = _lsqr_golub(X, E, b, C, d)
     # reverse sorting permutation to get a and b
@@ -438,8 +438,8 @@ class Interp1D(object):
     else:
       b[0] = beta * gamma
     # prepare d
-    d = zeros(self.l)
-    if self.l > 1:
+    d = zeros(self.p)
+    if self.p > 1:
       d[1] = 1.0
     # solve least square
     a = _lsqr_golub(X, E, b, C, d)
@@ -485,7 +485,7 @@ class Interp1D(object):
     base = range(iv) + range(iv+1,self.nv)
     subinterp = Interp1D(self.xv[base], self.fxv[base], self.dfxv[base], \
                          self.xg, self.fpxg, self.dfpxg, beta, gamma, \
-                         self.N, self.l, self.verbose)
+                         self.N, self.p, self.verbose)
     av, ag, er2 = subinterp.interp_coef(self.xv[iv])
     resid = dot(av,self.fxv[base]) + dot(ag,self.fpxg) - self.fxv[iv]
     return resid**2 / (er2 + self.dfxv[iv]**2) * safety_factor

@@ -51,7 +51,7 @@ fx = func(x)
 print
 print 'Using Interp1D class:'
 print
-interp = Interp1D(x, fx, l=1, verbose=1)
+interp = Interp1D(x, fx, p=1, verbose=1)
 fy, sig = interp.interp(y, compute_df=True)
 # ------------------------------------------
 
@@ -84,7 +84,7 @@ pylab.close()
 print
 print 'Using Interp1DVG class:'
 print
-interp = Interp1DVG(x, fx, l=1, verbose=1)
+interp = Interp1DVG(x, fx, p=1, verbose=1)
 fy, sig = interp.interp(y, compute_df=True)
 # ------------------------------------------
 

@@ -103,9 +103,9 @@ class Interp2D(object):
     automatically calculated.  Smaller N yields lower
     order interpolation.  Numerical instability may
     occur when N is too large.
-  l is the polynomial order.  The interpolant is
-    forced to interpolate order l-1 polynomials
-    exactly.  l=1 is the most robust, higher l makes
+  p is the polynomial order.  The interpolant is
+    forced to interpolate order p-1 polynomials
+    exactly.  p=1 is the most robust, higher p makes
     a difference only when gamma is large, or when
     data is sparse and oscilatory if gamma is
     automatically calculated.
@@ -116,12 +116,12 @@ class Interp2D(object):
   """
 
   def __init__(self, xv, fxv, dfxv=None, xg=None, fpxg=None, dfpxg=None, \
-               beta=None, gamma=None, N=None, l=1, verbose=1, \
+               beta=None, gamma=None, N=None, p=1, verbose=1, \
                safety_factor=1.0):
     """
     __init__(self, xv, fxv, dfxv=None, xg=None,
              fpxg=None, dfpxg=None, beta=None,
-             gamma=None, N=None, l=1)
+             gamma=None, N=None, p=1)
     Instantiation function, see class documentation
       for arguments.
     fxv must has same size as xv.
@@ -182,8 +182,8 @@ class Interp2D(object):
     else:
       self.N = N
 
-    assert int(l) == l
-    self.l = int(l)
+    assert int(p) == p
+    self.p = int(p)
 
     # automatically calculate beta and gamma
     if beta is None:
@@ -203,7 +203,7 @@ class Interp2D(object):
     evaluated.
     """
     assert x.dtype == float
-    N, n, l, nv, ng = self.N, self.n, self.l, self.nv, self.ng
+    N, n, p, nv, ng = self.N, self.n, self.p, self.nv, self.ng
     if beta is None:
       beta = self.beta
     if gamma is None:
@@ -261,7 +261,7 @@ class Interp2D(object):
     E = sqrt(Er2 + Ee**2)
 
     # construct C
-    M = _binomial(l+1,2) - 1
+    M = _binomial(p+1,2) - 1
     assert M <= len(order_set)
     C = zeros([M+1, n])
     C[0,:nv] = 1.0
@@ -391,7 +391,7 @@ class Interp2D(object):
     base = range(iv) + range(iv+1,self.nv)
     subinterp = Interp2D(self.xv[base], self.fxv[base], self.dfxv[base], \
                          self.xg, self.fpxg, self.dfpxg, beta, gamma, \
-                         self.N, self.l, self.verbose)
+                         self.N, self.p, self.verbose)
     av, ag, er2 = subinterp.interp_coef(self.xv[iv])
     resid = dot(av,self.fxv[base]) + dot(ag.flat,self.fpxg.flat) - self.fxv[iv]
     return resid**2 / (er2 + self.dfxv[iv]**2) * safety_factor
