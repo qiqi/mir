@@ -222,7 +222,7 @@ class Interp2D(object):
     for i, kappa in enumerate(order_set[:M1]):
       X[i,:nv] = gamma**sum(kappa) / _factorial(kappa) * \
                  ((self.xv - x)**kappa).prod(1)
-      if nv > 0:
+      if ng > 0:
         if kappa[0] > 0:
           kappa_p = [kappa[0]-1, kappa[1]]
           X[i,nv:nv+ng] = gamma**sum(kappa) / _factorial(kappa_p) * \
@@ -269,12 +269,12 @@ class Interp2D(object):
     C[0,:nv] = 1.0
     C[0,nv:] = 0.0
     for i, kappa in enumerate(order_set[:M]):
-      C[i+1,:nv] = (self.xv - x)**kappa
+      C[i+1,:nv] = ((self.xv - x)**kappa).prod(1)
       if ng > 0:
         kappa_p = [kappa[0]-1, kappa[1]]
-        C[i+1,nv:nv+ng] = kappa[0] * (self.xv - x)**kappa_p
+        C[i+1,nv:nv+ng] = kappa[0] * ((self.xv - x)**kappa_p).prod(1)
         kappa_p = [kappa[0], kappa[1]-1]
-        C[i+1,nv:nv+ng] = kappa[1] * (self.xv - x)**kappa_p
+        C[i+1,nv:nv+ng] = kappa[1] * ((self.xv - x)**kappa_p).prod(1)
     return X, E, C
 
 

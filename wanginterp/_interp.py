@@ -104,7 +104,8 @@ class Interp(object):
   """
 
   def __init__(self, xv, fxv, dfxv=None, xg=None, fpxg=None, dfpxg=None, \
-               beta=None, gamma=None, N=None, l=1, verbose=1):
+               beta=None, gamma=None, N=None, p=1, verbose=1, \
+               safety_factor=1.0):
     """
     __init__(self, xv, fxv, dfxv=None, xg=None,
              fpxg=None, dfpxg=None, beta=None,
@@ -147,7 +148,7 @@ class Interp(object):
       self.fpxg = zeros([0,d])
       self.dfpxg = zeros(0)
     else:
-      assert xg.ndim == d and xg.shape[1] == d
+      assert xg.ndim == 2 and xg.shape[1] == d
       assert fpxg is not None and fpxg.shape == xg.shape
       self.xg = copy.copy(xg)
       self.fpxg = copy.copy(fpxg)
@@ -166,13 +167,15 @@ class Interp(object):
     self.ng = self.xg.shape[0]
     self.n = self.nv + self.ng * d
     if N is None:
-      self.N = _binomial_inv(min(self.n,d, 100)) - d
+      self.N = _binomial_inv(min(self.n, 100), d) - d
     else:
       self.N = N
     assert self.N > 0
 
     assert int(p) == p
     self.p = int(p)
+
+    self.d = d
 
     # automatically calculate beta and gamma
     if beta is None:
@@ -192,14 +195,14 @@ class Interp(object):
     evaluated.
     """
     assert x.dtype == float
-    N, n, p, nv, ng = self.N, self.n, self.p, self.nv, self.ng
+    N, n, p, nv, ng, d = self.N, self.n, self.p, self.nv, self.ng, self.d
     if beta is None:
       beta = self.beta
     if gamma is None:
       gamma = self.gamma
 
     # construct the order set
-    order_set = _order_set(N+1)
+    order_set = _order_set(N+1, self.d)
     M1 = _binomial(N+d,d) - 1
     M2 = _binomial(N+d+1,d) - 1
     assert len(order_set) == M2
@@ -209,15 +212,7 @@ class Interp(object):
     for i, kappa in enumerate(order_set[:M1]):
       X[i,:nv] = gamma**sum(kappa) / _factorial(kappa) * \
                  ((self.xv - x)**kappa).prod(1)
-      if nv > 0:
-        if kappa[0] > 0:
-          kappa_p = [kappa[0]-1, kappa[1]]
-          X[i,nv:nv+ng] = gamma**sum(kappa) / _factorial(kappa_p) * \
-                          ((self.xg - x)**kappa_p).prod(1)
-        if kappa[1] > 0:
-          kappa_p = [kappa[0], kappa[1]-1]
-          X[i,nv+ng:] = gamma**sum(kappa) / _factorial(kappa_p) * \
-                        ((self.xg - x)**kappa_p).prod(1)
+      assert ng == 0
     X *= beta
 
     # construct diagonal G matrix for the Lagrange residual
@@ -226,25 +221,13 @@ class Interp(object):
       Eri = gamma**sum(kappa) / _factorial(kappa) * \
             ((self.xv - x)**kappa).prod(1)
       Er2[:nv] += Eri**2
-      if ng > 0:
-        if kappa[0] > 0:
-          kappa_p = [kappa[0]-1, kappa[1]]
-          Eri = gamma**sum(kappa) / _factorial(kappa_p) * \
-                ((self.vg - x)**kappa_p).prod(1)
-          Er2[nv:nv+ng] += Eri**2
-        if kappa[1] > 0:
-          kappa_p = [kappa[0], kappa[1]-1]
-          Eri = gamma**sum(kappa) / _factorial(kappa_p) * \
-               ((self.vg - x)**kappa_p).prod(1)
-          Er2[nv+ng:] += Eri**2
+      assert ng == 0
     Er2 *= beta**2
 
     # construct diagonal H matrix for measurement errors
     Ee = zeros(n)
     Ee[:nv] = self.dfxv
-    if ng > 0:
-      Ee[nv:nv+ng] = self.dfpxg
-      Ee[nv+ng:] = self.dfpxg
+    assert ng == 0
 
     # construct E
     E = sqrt(Er2 + Ee**2)
@@ -256,12 +239,8 @@ class Interp(object):
     C[0,:nv] = 1.0
     C[0,nv:] = 0.0
     for i, kappa in enumerate(order_set[:M]):
-      C[i+1,:nv] = (self.xv - x)**kappa
-      if ng > 0:
-        kappa_p = [kappa[0]-1, kappa[1]]
-        C[i+1,nv:nv+ng] = kappa[0] * (self.xv - x)**kappa_p
-        kappa_p = [kappa[0], kappa[1]-1]
-        C[i+1,nv:nv+ng] = kappa[1] * (self.xv - x)**kappa_p
+      C[i+1,:nv] = ((self.xv - x)**kappa).prod(1)
+      assert ng == 0
     return X, E, C
 
 
@@ -305,13 +284,13 @@ class Interp(object):
       a = _lsqr_wang(X, E, C[0,:])
     else:
       b = zeros(X.shape[0] + X.shape[1])
-      d = zeros(C.shape[0])
-      d[0] = 1.0
-      a = _lsqr_golub(X, E, b, C, d)
+      e = zeros(C.shape[0])
+      e[0] = 1.0
+      a = _lsqr_golub(X, E, b, C, e)
     # reverse sorting permutation to get a and b
     arevt = a[irevt]
     av = arevt[:self.nv]
-    ag = arevt[self.nv:].reshape([self.ng,d])
+    ag = arevt[self.nv:].reshape([self.ng,self.d])
     # compute the expeted squared residual
     finite = (a != 0)
     Xa = dot(X[:,finite], a[finite])
@@ -431,7 +410,7 @@ class Interp(object):
     """
     # evaluate interpolant value at a single point
     x = numpy.array(x)
-    if x.shape == (d,):
+    if x.shape == (self.d,):
       av, ag, er2 = self.interp_coef(x)
       fx = dot(av, self.fxv) + dot(ag.flat, self.fpxg.flat)
       dfx = sqrt(er2)
@@ -443,7 +422,7 @@ class Interp(object):
     else:
       fx, dfx = [], []
       for xi in x:
-        assert xi.shape == (d,)
+        assert xi.shape == (self.d,)
         av, ag, er2 = self.interp_coef(xi)
         fx.append(dot(av, self.fxv) + dot(ag.flat, self.fpxg.flat))
         dfx.append(sqrt(er2))
