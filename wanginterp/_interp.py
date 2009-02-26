@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-Interpolation and regression in two-dimensional space
+Interpolation and regression in multi-dimensional space
 
 reference:
   Q Wang et al. A Multivariate Rational Interpolation
@@ -37,6 +37,7 @@ from numpy import zeros, ones, eye, kron, linalg, dot, exp, sqrt, diag, pi, \
 
 from _interp1d import _factorial, _solve_L, _solve_R, \
                       _lsqr_wang, _lsqr_golub
+from _interp2d import _binomial, _binomial_inv, _order_set_2d
 
 
 
@@ -45,32 +46,18 @@ from _interp1d import _factorial, _solve_L, _solve_R, \
 
 
 
-
-def _binomial(m, n):
-  assert n >= 0 and m >= n
-  b = 1
-  for k in range(1,n+1):
-    b  = b * (m-n+k) / k
-  return b
-
-
-def _binomial_inv(l, n):
-  "Calculate the largest b such that _binomial(b,n) <= l."
-  m, b = n, 1
-  while b <= l:
-    m += 1
-    b = b * m / (m-n)
-  return m - 1
-
-
-def _order_set_2d(N):
+def _order_set(N, d):
   "Return the total order set in 2D"
-  if N == 1:
-    return [[0,1], [1,0]]
+  if d == 0:
+    return []
   else:
-    set = _order_set_2d(N-1)
-    set.extend([i,N-i] for i in range(N+1))
-    return set
+    set = []
+    for i in range(N+1):
+      if i > 0:
+        set.append([i] + [0]*(d-1))
+      lesser_set = _order_set(N-i, d-1)
+      set.extend([i] + order for order in lesser_set)
+    return sorted(set, key=sum)
 
 
 
@@ -79,9 +66,9 @@ def _order_set_2d(N):
 
 
 
-class Interp2D(object):
+class Interp(object):
   """
-  Interpolation in 2D.
+  Interpolation in multi-dimensional space.
   xv is the ``value data points'', i.e. the points
     where the function value is available and given
     by fxv; dfxv estimates the standard deviation of
@@ -104,9 +91,9 @@ class Interp2D(object):
     automatically calculated.  Smaller N yields lower
     order interpolation.  Numerical instability may
     occur when N is too large.
-  p is the polynomial order.  The interpolant is
-    forced to interpolate order p-1 polynomials
-    exactly.  p=1 is the most robust, higher p makes
+  l is the polynomial order.  The interpolant is
+    forced to interpolate order l-1 polynomials
+    exactly.  l=1 is the most robust, higher l makes
     a difference only when gamma is large, or when
     data is sparse and oscilatory if gamma is
     automatically calculated.
@@ -117,12 +104,11 @@ class Interp2D(object):
   """
 
   def __init__(self, xv, fxv, dfxv=None, xg=None, fpxg=None, dfpxg=None, \
-               beta=None, gamma=None, N=None, p=1, verbose=1, \
-               safety_factor=1.0):
+               beta=None, gamma=None, N=None, l=1, verbose=1):
     """
     __init__(self, xv, fxv, dfxv=None, xg=None,
              fpxg=None, dfpxg=None, beta=None,
-             gamma=None, N=None, p=1)
+             gamma=None, N=None, l=1)
     Instantiation function, see class documentation
       for arguments.
     fxv must has same size as xv.
@@ -138,13 +124,14 @@ class Interp2D(object):
       calculated.  The calculation of gamma may take a
       long time if the number of datapoints is large.
     """
-    
+
     assert verbose == 0 or verbose == 1 or verbose == 2
     self.verbose = verbose
 
     # verify and save value data points
     assert xv.ndim == 2 and fxv.ndim == 1
-    assert xv.shape[1] == 2 and xv.shape[0] == fxv.shape[0]
+    d = xv.shape[1]
+    assert xv.shape[1] == d and xv.shape[0] == fxv.shape[0]
     self.xv = copy.copy(xv)
     self.fxv = copy.copy(fxv)
     if dfxv is None:
@@ -156,11 +143,11 @@ class Interp2D(object):
     # verify and save gradient data points
     if xg is None:
       assert fpxg is None and dfpxg is None
-      self.xg = zeros([0,2])
-      self.fpxg = zeros([0,2])
+      self.xg = zeros([0,d])
+      self.fpxg = zeros([0,d])
       self.dfpxg = zeros(0)
     else:
-      assert xg.ndim == 2 and xg.shape[1] == 2
+      assert xg.ndim == d and xg.shape[1] == d
       assert fpxg is not None and fpxg.shape == xg.shape
       self.xg = copy.copy(xg)
       self.fpxg = copy.copy(fpxg)
@@ -177,9 +164,9 @@ class Interp2D(object):
     # check and automatically calculate N
     self.nv = self.xv.shape[0]
     self.ng = self.xg.shape[0]
-    self.n = self.nv + self.ng * 2
+    self.n = self.nv + self.ng * d
     if N is None:
-      self.N = min(_binomial_inv(self.n,2), 14) - 2
+      self.N = _binomial_inv(min(self.n,d, 100)) - d
     else:
       self.N = N
     assert self.N > 0
@@ -212,9 +199,9 @@ class Interp2D(object):
       gamma = self.gamma
 
     # construct the order set
-    order_set = _order_set_2d(N+1)
-    M1 = _binomial(N+2,2) - 1
-    M2 = _binomial(N+3,2) - 1
+    order_set = _order_set(N+1)
+    M1 = _binomial(N+d,d) - 1
+    M2 = _binomial(N+d+1,d) - 1
     assert len(order_set) == M2
 
     # construct X = [Xv,Xg]
@@ -263,7 +250,7 @@ class Interp2D(object):
     E = sqrt(Er2 + Ee**2)
 
     # construct C
-    M = _binomial(p+1,2) - 1
+    M = _binomial(p+1,d) - 1
     assert M <= len(order_set)
     C = zeros([M+1, n])
     C[0,:nv] = 1.0
@@ -324,7 +311,7 @@ class Interp2D(object):
     # reverse sorting permutation to get a and b
     arevt = a[irevt]
     av = arevt[:self.nv]
-    ag = arevt[self.nv:].reshape([self.ng,2])
+    ag = arevt[self.nv:].reshape([self.ng,d])
     # compute the expeted squared residual
     finite = (a != 0)
     Xa = dot(X[:,finite], a[finite])
@@ -391,9 +378,9 @@ class Interp2D(object):
     if safety_factor is None:
       safety_factor = self.safety_factor
     base = range(iv) + range(iv+1,self.nv)
-    subinterp = Interp2D(self.xv[base], self.fxv[base], self.dfxv[base], \
-                         self.xg, self.fpxg, self.dfpxg, beta, gamma, \
-                         self.N, self.p, self.verbose)
+    subinterp = Interp(self.xv[base], self.fxv[base], self.dfxv[base], \
+                       self.xg, self.fpxg, self.dfpxg, beta, gamma, \
+                       self.N, self.p, self.verbose)
     av, ag, er2 = subinterp.interp_coef(self.xv[iv])
     resid = dot(av,self.fxv[base]) + dot(ag.flat,self.fpxg.flat) - self.fxv[iv]
     return resid**2 / (er2 + self.dfxv[iv]**2) * safety_factor
@@ -431,9 +418,9 @@ class Interp2D(object):
 
   def interp(self, x, compute_df=False):
     """
-    Interpolation in 2D.
-    x is the point (size 2 array) or points
-      (a list of size 2 arrays or an shape(n,2) array)
+    Interpolation in multi dimensional space
+    x is the point (size d array) or points
+      (a list of size d arrays or an shape(n,d) array)
       where the interpolation is evaluated.
     compute_df indicates whether an estimated standard
       deviation of the error in the interpolation
@@ -444,7 +431,7 @@ class Interp2D(object):
     """
     # evaluate interpolant value at a single point
     x = numpy.array(x)
-    if x.shape == (2,):
+    if x.shape == (d,):
       av, ag, er2 = self.interp_coef(x)
       fx = dot(av, self.fxv) + dot(ag.flat, self.fpxg.flat)
       dfx = sqrt(er2)
@@ -456,7 +443,7 @@ class Interp2D(object):
     else:
       fx, dfx = [], []
       for xi in x:
-        assert xi.shape == (2,)
+        assert xi.shape == (d,)
         av, ag, er2 = self.interp_coef(xi)
         fx.append(dot(av, self.fxv) + dot(ag.flat, self.fpxg.flat))
         dfx.append(sqrt(er2))

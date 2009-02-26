@@ -285,7 +285,7 @@ class Interp1D(object):
     self.ng = self.xg.size
     self.n = self.nv + self.ng
     if N is None:
-      self.N = min(self.n, 200)
+      self.N = min(self.n, 50)
     else:
       self.N = N
 
@@ -604,6 +604,7 @@ class Interp1D(object):
     else:
       fp, dfp = [], []
       for xi in x:
+        assert isinstance(xi, (float, int))
         av, ag, er2 = self.grad_coef(xi)
         fp.append(dot(av, self.fxv) + dot(ag, self.fpxg))
         dfp.append(sqrt(er2))
