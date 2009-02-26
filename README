@@ -1,0 +1,11 @@
+1. You can do "sudo python setup.py install" to install the package, so that
+   you can use it anywhere.
+
+2. Please see the code in the test/ directory to see how to use the
+   interpolation scheme.
+
+3. The Interp class is the most general multivariate case, however, it is not
+   as fully tested as the 1D and 2D special cases.
+
+4. Shoot me an email (qiqi.wang@gmail.com) if the code does not work / is
+   wrong / is ugly.
