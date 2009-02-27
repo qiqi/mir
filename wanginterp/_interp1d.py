@@ -289,6 +289,7 @@ class Interp1D(object):
     else:
       self.N = N
 
+    # set polynomial order (default 1)
     assert int(p) == p
     self.p = int(p)
 
@@ -369,9 +370,9 @@ class Interp1D(object):
         return av, ag, 0.0
     # construct matrices
     X, E, C = self.interp_matrices(x, beta, gamma)
-    # assemble the diagonal of matrix A, and sort by its diagonal
-    diagA = (X**2).sum(0) + E**2
-    isort = sorted(range(self.n), key=diagA.__getitem__)
+    # assemble the diagonal of matrix Q, and sort by its diagonal
+    diagQ = (X**2).sum(0) + E**2
+    isort = sorted(range(self.n), key=diagQ.__getitem__)
     irevt = sorted(range(self.n), key=isort.__getitem__)
     # permute columns of X and diagonal of G and H
     X = X[:,isort]
@@ -423,9 +424,9 @@ class Interp1D(object):
         return av, ag, 0.0
     # construct matrices
     X, E, C = self.interp_matrices(x, beta, gamma)
-    # assemble the diagonal of matrix A, and sort by its diagonal
-    diagA = (X**2).sum(0) + E**2
-    isort = sorted(range(self.n), key=diagA.__getitem__)
+    # assemble the diagonal of matrix Q, and sort by its diagonal
+    diagQ = (X**2).sum(0) + E**2
+    isort = sorted(range(self.n), key=diagQ.__getitem__)
     irevt = sorted(range(self.n), key=isort.__getitem__)
     # permute columns of X and diagonal of G and H
     X = X[:,isort]
@@ -482,12 +483,12 @@ class Interp1D(object):
     """
     if safety_factor is None:
       safety_factor = self.safety_factor
-    base = range(iv) + range(iv+1,self.nv)
-    subinterp = Interp1D(self.xv[base], self.fxv[base], self.dfxv[base], \
+    others = range(iv) + range(iv+1,self.nv)
+    subinterp = Interp1D(self.xv[others], self.fxv[others], self.dfxv[others], \
                          self.xg, self.fpxg, self.dfpxg, beta, gamma, \
                          self.N, self.p, self.verbose)
     av, ag, er2 = subinterp.interp_coef(self.xv[iv])
-    resid = dot(av,self.fxv[base]) + dot(ag,self.fpxg) - self.fxv[iv]
+    resid = dot(av,self.fxv[others]) + dot(ag,self.fpxg) - self.fxv[iv]
     return resid**2 / (er2 + self.dfxv[iv]**2) * safety_factor
 
 
