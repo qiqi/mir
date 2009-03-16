@@ -304,15 +304,12 @@ class Interp(object):
     """
     Estimate the `magnitude' parameter beta from data points.
     """
-    if self.dfxv.max() == 0:  # beta does not matter in this case.
-      return 1.0
-    else:
-      assert self.fxv.ndim == 1 and self.fxv.shape == self.dfxv.shape
-      f_bar = self.fxv.mean()
-      ratio = (self.dfxv**2).sum() / ((self.fxv - f_bar)**2).sum() * \
-              float(self.nv-1) / float(self.nv)
-      beta = sqrt(((self.fxv - f_bar)**2).sum() / (self.nv-1) * exp(-ratio))
-      return beta
+    assert self.fxv.ndim == 1 and self.fxv.shape == self.dfxv.shape
+    f_bar = self.fxv.mean()
+    ratio = (self.dfxv**2).sum() / ((self.fxv - f_bar)**2).sum() * \
+            float(self.nv-1) / float(self.nv)
+    beta = sqrt(((self.fxv - f_bar)**2).sum() / (self.nv-1) * exp(-ratio))
+    return beta
 
 
 
