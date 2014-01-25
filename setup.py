@@ -1,8 +1,8 @@
 # Copyright 2009 Qiqi Wang
 #
-# This file is part of wanginterp.
+# This file is part of MIR
 #
-# wanginterp is free software: you can redistribute it and/or modify
+# MIR is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
@@ -17,11 +17,11 @@
 
 
 from distutils.core import setup
-setup(name='wanginterp',
+setup(name='mir',
       description='A high order interpolation scheme for aribitrary data sets',
       author='Qiqi Wang',
       author_email='qiqi.wang@gmail.com',
       version='1.0.0',
-      packages=['wanginterp'],
+      packages=['mir'],
      )
 
